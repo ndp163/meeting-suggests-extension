@@ -19,11 +19,12 @@ async function captureAudio() {
   //     console.error(error);
   //     throw error;
   //   });
-  fetch('https://jsonplaceholder.typicode.com/todos/1')
-      .then(response => response.json())
-      .then(json => console.log(json));
 
-  const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true });
+
+  const stream = await navigator.mediaDevices.getDisplayMedia({ audio: {
+    sampleRate: SAMPLE_RATE,
+    echoCancellation: true
+  } });
 	console.log('Start capture...');
   const [track] = stream.getAudioTracks();
 
@@ -31,8 +32,6 @@ async function captureAudio() {
 	const context = new AudioContext({ sampleRate: SAMPLE_RATE });
 	await context.audioWorklet.addModule('worklets.js');
 	var newStream = context.createMediaStreamSource(stream);
-	newStream.connect(context.destination);
-  newStream.connect(context.destination);
 
 	// const recorder = new MediaRecorder(stream, {
 	//   mimeType: 'audio/webm'
@@ -61,20 +60,17 @@ async function captureAudio() {
 
   setTimeout(() => {
     saveToFile(encodeAudio(chunks, track.getSettings()), "test.wav");
-  }, 30000);
+  }, 10000);
 	// })
 }
 
 function saveToFile(blob, name) {
-	const url = window.URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	document.body.appendChild(a);
-	a.style = 'display: none';
-	a.href = url;
-	a.download = name;
-	a.click();
-	URL.revokeObjectURL(url);
-	a.remove();
+  const data = new FormData();
+  data.append('audio', blob, 'audio.wav');
+  fetch('http://localhost:3000/translate', {
+    method: 'POST',
+    body: data
+  }).then(response => response.json()).then(json => console.log(json));
 }
 
 function encodeAudio (buffers, settings) {
