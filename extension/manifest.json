@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Audio Capture Extension",
+  "version": "1.0",
+  "description": "Captures audio from the current tab",
+  "permissions": ["scripting", "activeTab", "tabCapture"],
+  "action": {
+    "default_title": "Click to show an alert",
+    "default_popup": "popup.html"
+  }
+}
