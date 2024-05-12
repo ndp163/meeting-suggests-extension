@@ -11,14 +11,10 @@ class TranslationController {
     
     let speechRecognizer = new azureSdk.SpeechRecognizer(speechConfig, audioConfig);
     speechRecognizer.recognizeOnceAsync(result => {
-      console.log(result);
-      console.log({errorDetails: result.errorDetails});
-      console.log({reason: result.reason});
-      console.log(`RECOGNIZED: Text=${result.text}`);
+      console.log({text: result.text});
       speechRecognizer.close();
+      res.json({ text: result.text });
     });
-
-    res.json({'message': 'ok'});
   }
 }
 
