@@ -1,54 +1,62 @@
-const SAMPLE_RATE = 44100;
+// const SAMPLE_RATE = 44100;
+
+let recorder, chunks, track;
+const TranslatedTextBox = document.getElementById('translated-text-box');
 
 document.getElementById('start-capture').addEventListener('click', function () {
-	captureAudio();
+  alert("Started!");
+  captureAudio();
+});
+
+document.getElementById('translate-audio').addEventListener('click', async function () {
+  const blob = encodeAudio(chunks, track.getSettings());
+  chunks = [];
+  const text = await translateAudio(blob);
+  TranslatedTextBox.innerHTML += `<p>${text}</p>`;
+  alert(text);
 });
 
 async function captureAudio() {
-	// chrome.tabCapture.capture({audio: true, video: false}, async (stream) => {
-  // const stream = await navigator.mediaDevices
-  //   .getUserMedia({
-  //     audio: {
-  //       sampleRate: SAMPLE_RATE,
-  //       channelCount: 1,
-  //       echoCancellation: true,
-  //     },
-  //     video: false,
-  //   })
-  //   .catch((error) => {
-  //     console.error(error);
-  //     throw error;
-  //   });
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
+  const streamId = await chrome.tabCapture.getMediaStreamId({
+    targetTabId: tab.id
+  });
 
-  const stream = await navigator.mediaDevices.getDisplayMedia({ audio: {
-    sampleRate: SAMPLE_RATE,
-    echoCancellation: true
-  } });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      mandatory: {
+        chromeMediaSource: 'tab',
+        chromeMediaSourceId: streamId
+      }
+    }
+  });
+
 	console.log('Start capture...');
-  const [track] = stream.getAudioTracks();
+  [track] = stream.getAudioTracks();
 
-	// these lines enable the audio to continue playing while capturing
-	const context = new AudioContext({ sampleRate: SAMPLE_RATE });
+	const context = new AudioContext();
 	await context.audioWorklet.addModule('worklets.js');
 	var newStream = context.createMediaStreamSource(stream);
 
-	// const recorder = new MediaRecorder(stream, {
-	//   mimeType: 'audio/webm'
-	// });
+	// // const recorder = new MediaRecorder(stream, {
+	// //   mimeType: 'audio/webm'
+	// // });
 
-	const chunks = [];
-	// recorder.ondataavailable = (e) => {
-	//     console.log("OKEEÊ");
-	//     chunks.push(e.data);
-	// };
-	// recorder.onstop = (e) => saveToFile(new Blob(chunks, {
-	//   type: recorder.mimeType
-	// }), "test.webm");
-	// recorder.start();
-	// setTimeout(() => recorder.stop(), 5000);
-	const recorder = new AudioWorkletNode(context, 'recording-processor');
+	chunks = [];
+	// // recorder.ondataavailable = (e) => {
+	// //     console.log("OKEEÊ");
+	// //     chunks.push(e.data);
+	// // };
+	// // recorder.onstop = (e) => saveToFile(new Blob(chunks, {
+	// //   type: recorder.mimeType
+	// // }), "test.webm");
+	// // recorder.start();
+	// // setTimeout(() => recorder.stop(), 5000);
+	recorder = new AudioWorkletNode(context, 'recording-processor');
 	newStream.connect(recorder);
+	newStream.connect(context.destination);
+
 	recorder.port.onmessage = (e) => {
 		console.log(e.data);
 		chunks.push(e.data);
@@ -57,20 +65,16 @@ async function captureAudio() {
 	recorder.port.onmessageerror = (e) => {
 		console.log(`Error receiving message from worklet ${e}`);
 	};
-
-  setTimeout(() => {
-    saveToFile(encodeAudio(chunks, track.getSettings()), "test.wav");
-  }, 10000);
-	// })
 }
 
-function saveToFile(blob, name) {
+async function translateAudio(blob) {
   const data = new FormData();
   data.append('audio', blob, 'audio.wav');
-  fetch('http://localhost:3000/translate', {
+  const response = await fetch('http://localhost:3000/translate', {
     method: 'POST',
     body: data
-  }).then(response => response.json()).then(json => console.log(json));
+  });
+  return (await response.json()).text;
 }
 
 function encodeAudio (buffers, settings) {
@@ -122,4 +126,26 @@ function encodeAudio (buffers, settings) {
   }
 
   return new Blob([dataView], {type: 'audio/wav'});
+}
+
+function tabCapture() {
+  // chrome.tabCapture.capture({audio: true, video: false}, async (stream) => {
+  //   console.log({ stream });
+
+  //   recorder = new MediaRecorder(stream, {
+  //     mimeType: 'audio/webm'
+  //   });
+  //   const chunks = [];
+  //   recorder.ondataavailable = (e) => {
+  //     chunks.push(e.data);
+  //   };
+  //   recorder.onstop = (e) => {
+  //     const blob = new Blob(chunks, {
+  //       type: recorder.mimeType
+  //     });
+  //     window.open(URL.createObjectURL(blob), '_blank');
+  //   };
+
+  //   recorder.start();
+  // });
 }

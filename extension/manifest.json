@@ -3,9 +3,11 @@
   "name": "Audio Capture Extension",
   "version": "1.0",
   "description": "Captures audio from the current tab",
-  "permissions": ["scripting", "activeTab", "tabCapture"],
+  "permissions": ["tabs", "scripting", "activeTab", "tabCapture", "sidePanel"],
   "action": {
-    "default_title": "Click to show an alert",
-    "default_popup": "popup.html"
+    "default_title": "Open meeting AI"
+  },
+  "background": {
+    "service_worker": "service_worker.js"
   }
 }
