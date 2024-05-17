@@ -9,11 +9,10 @@ document.getElementById('start-capture').addEventListener('click', function () {
 });
 
 document.getElementById('translate-audio').addEventListener('click', async function () {
-  const blob = encodeAudio(chunks, track.getSettings());
+  const blob = encodeAudio(chunks.slice(), track.getSettings());
   chunks = [];
   const text = await translateAudio(blob);
   TranslatedTextBox.innerHTML += `<p>${text}</p>`;
-  alert(text);
 });
 
 async function captureAudio() {
@@ -39,26 +38,12 @@ async function captureAudio() {
 	await context.audioWorklet.addModule('worklets.js');
 	var newStream = context.createMediaStreamSource(stream);
 
-	// // const recorder = new MediaRecorder(stream, {
-	// //   mimeType: 'audio/webm'
-	// // });
-
 	chunks = [];
-	// // recorder.ondataavailable = (e) => {
-	// //     console.log("OKEEÊ");
-	// //     chunks.push(e.data);
-	// // };
-	// // recorder.onstop = (e) => saveToFile(new Blob(chunks, {
-	// //   type: recorder.mimeType
-	// // }), "test.webm");
-	// // recorder.start();
-	// // setTimeout(() => recorder.stop(), 5000);
 	recorder = new AudioWorkletNode(context, 'recording-processor');
 	newStream.connect(recorder);
 	newStream.connect(context.destination);
 
 	recorder.port.onmessage = (e) => {
-		console.log(e.data);
 		chunks.push(e.data);
 	};
 
@@ -126,26 +111,4 @@ function encodeAudio (buffers, settings) {
   }
 
   return new Blob([dataView], {type: 'audio/wav'});
-}
-
-function tabCapture() {
-  // chrome.tabCapture.capture({audio: true, video: false}, async (stream) => {
-  //   console.log({ stream });
-
-  //   recorder = new MediaRecorder(stream, {
-  //     mimeType: 'audio/webm'
-  //   });
-  //   const chunks = [];
-  //   recorder.ondataavailable = (e) => {
-  //     chunks.push(e.data);
-  //   };
-  //   recorder.onstop = (e) => {
-  //     const blob = new Blob(chunks, {
-  //       type: recorder.mimeType
-  //     });
-  //     window.open(URL.createObjectURL(blob), '_blank');
-  //   };
-
-  //   recorder.start();
-  // });
 }
