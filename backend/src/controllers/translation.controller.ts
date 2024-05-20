@@ -1,6 +1,6 @@
 import fs from 'fs';
 import azureSdk from "microsoft-cognitiveservices-speech-sdk";
-import LangChainService from "../services/langchain.service";
+import LangChainService from '../services/langchainBase.service';
 import dotenv from 'dotenv';
 import { Request, Response } from 'express';
 dotenv.config();
@@ -21,18 +21,6 @@ class TranslationController {
       speechRecognizer.close();
       res.json({ text: result.text });
     });
-  }
-
-  async suggest(req: Request, res: Response, next: Function) {
-    const langChainService = new LangChainService();
-    await langChainService.init();
-    res.json(await langChainService.getMatching());
-  }
-
-  async addDocuments(req: Request, res: Response, next: Function) {
-    const langChainService = new LangChainService();
-    await langChainService.init();
-    await langChainService.addDocuments();
   }
 }
 

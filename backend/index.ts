@@ -3,6 +3,7 @@ import cors from 'cors';
 import router from './src/routes';
 import { createServer } from "http";
 import { Server } from "socket.io";
+import translateHandler from "./src/socket/translateHandler";
 
 const app = express();
 
@@ -28,7 +29,17 @@ app.use((err: any, req: Request, res: Response, next: Function) => {
 });
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, { /* options */ });
+const io = new Server(httpServer, { 
+  cors: {
+    origin: '*',
+  }
+});
+io.on('connect', (socket) => {
+  console.log(socket.id);
+
+  translateHandler(io, socket);
+})
+
 httpServer.listen(port as number, '0.0.0.0', () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });

@@ -74,7 +74,7 @@ class RecordingProcessor extends AudioWorkletProcessor {
         ? this.currAudioChunk.slice(0, this.currAudioChunkSize)
         : this.currAudioChunk;
 
-    this.port.postMessage(audioChunk);
+    this.port.postMessage(encodeAudioChunkAsPCM(audioChunk));
 
     this.resetCurrAudioChunk();
   }

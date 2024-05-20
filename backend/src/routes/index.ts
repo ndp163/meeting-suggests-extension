@@ -6,7 +6,5 @@ const upload = multer({dest:'.'});
 const router = express.Router();
 
 router.post('/translate', upload.single('audio'), translationController.translate);
-router.get('/suggest', translationController.suggest);
-router.get('/addDocuments', translationController.addDocuments);
 
 export default router;
