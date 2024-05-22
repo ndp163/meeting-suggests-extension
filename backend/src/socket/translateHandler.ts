@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import * as azureSdk from "microsoft-cognitiveservices-speech-sdk";
 import dotenv from 'dotenv';
 import MeetingBotService from '../services/meetingBot.service';
+import RagQAService from '../services/ragQA.service';
 dotenv.config();
 
 export default (io: Server, socket: Socket) => {
@@ -11,8 +12,7 @@ export default (io: Server, socket: Socket) => {
   let audioConfig = azureSdk.AudioConfig.fromStreamInput(pushStream);
   let speechRecognizer = new azureSdk.SpeechRecognizer(speechConfig, audioConfig);
 
-  const meetingBotService = new MeetingBotService();
-
+  // const meetingBotService = new MeetingBotService();
   speechRecognizer.recognizing = (s, e) => {
     socket.emit("translating_text", e.result.text);
     console.log(`RECOGNIZING: Text=${e.result.text}`);
@@ -23,7 +23,10 @@ export default (io: Server, socket: Socket) => {
       console.log(`RECOGNIZED: Text=${e.result.text}`);
       // const translatedText = await meetingBotService.suggest(e.result.text);
       // console.log({ translatedText });
-      socket.emit("translated_text", e.result.text);
+      socket.emit("translated_text", {
+        origin: e.result.text,
+        translated: ""
+      });
     }
     else if (e.result.reason == azureSdk.ResultReason.NoMatch) {
       console.log("NOMATCH: Speech could not be recognized.");

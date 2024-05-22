@@ -12,24 +12,20 @@ export default class RagQAService extends LangchainServiceBase {
 
   constructor() {
     super();
-
-    const promptTemplate = `Human: You are an AI assistant searching for companies that match user demands. Using information from the context, generate a response that return the list name of companies relevant for the user's demands below:
-      Demands: {question}
-      Context: {context}
+    const promptTemplate = `Human: You are an AI translating assistant. Translate the following text from English to Vietnamese:
+      "{question}"
       Assistant:
     `;
-    this.prompt = PromptTemplate.fromTemplate(promptTemplate);
+    // this.prompt = PromptTemplate.fromTemplate(promptTemplate);
   }
 
   async init() {
     if (!this.ragChain) {
-      await super.init();
-
-      this.ragChain = await createStuffDocumentsChain({
-        llm: this.llmModel,
-        prompt: this.prompt,
-        outputParser: new StringOutputParser(),
-      });
+      // this.ragChain = await createStuffDocumentsChain({
+      //   llm: this.llmModel,
+      //   prompt: this.prompt,
+      //   outputParser: new StringOutputParser(),
+      // });
     }
   }
 
@@ -70,16 +66,17 @@ export default class RagQAService extends LangchainServiceBase {
     //   "companies provide law lawyer",
     //   {}
     // );
-    const context =  await this.vectorStore.similaritySearchWithScore("companies provide law lawyer");
-    console.log(context);
-    for (let doc of context) {
-      console.log(doc[0].metadata);
-    }
-    return context;
+    // const context =  await this.vectorStore.similaritySearchWithScore(text);
+    // console.log(context);
+    // for (let doc of context) {
+    //   console.log(doc[0].metadata);
+    // }
+    // return context;
+    console.log(text);
 
-    // return await this.ragChain.invoke({
-    //   question: "Find companies provide law service",
-    //   context,
-    // });
+    const answer = await this.translate(`Human: You are an AI translating assistant. Translate the following text from English to Vietnamese:
+    "${text}"
+    Assistant:`);
+    return answer.content;
   }
 }

@@ -5,6 +5,6 @@ import translationController from '../controllers/translation.controller';
 const upload = multer({dest:'.'});
 const router = express.Router();
 
-router.post('/translate', upload.single('audio'), translationController.translate);
+router.post('/translate',  translationController.translate.bind(translationController));
 
 export default router;

@@ -1,12 +1,10 @@
 import { BedrockChat } from "@langchain/community/chat_models/bedrock";
-
-import { Bedrock } from "@langchain/community/llms/bedrock";
 import { BedrockEmbeddings } from "@langchain/community/embeddings/bedrock";
 import {
   AzureAISearchVectorStore,
 } from "@langchain/community/vectorstores/azure_aisearch";
 
-require('dotenv').config();
+import 'dotenv/config';
 
 export default abstract class LangchainServiceBase {
   protected vectorStore!: AzureAISearchVectorStore
