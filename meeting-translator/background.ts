@@ -2,20 +2,16 @@
 
 const ORIGIN = 'https://meet.google.com';
 
-console.log("OKE")
 // Allows users to open the side panel by clicking on the action toolbar icon
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
 chrome.action.onClicked.addListener(async (tab) => {
-console.log("OKE")
-if (!tab.url) return;
+  if (!tab.url) return;
   const url = new URL(tab.url);
-  console.log(url.origin)
 
   if (url.origin === ORIGIN) {
-    console.log("OKE2")
     await chrome.sidePanel.setOptions({
       tabId: tab.id,
       path: '../../sidepanel.html',
@@ -29,3 +25,4 @@ if (!tab.url) return;
     });
   }
 });
+
