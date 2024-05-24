@@ -10,14 +10,17 @@ export interface HistoryText {
   name: string;
 }
 
+const OWN_NAME = "Tôi";
+
 function IndexSidePanel() {
   const [recordingText, setRecordingText] = useState("Listening");
+  const [myVoiceDetecting, setMyVoiceDetecting] = useState("");
   const [tabId, setTabId] = useState(null);
   const [historyTexts, setHistoryTexts] = useState<HistoryText[]>([{
     origin: 'Hello World!',
     translated: 'Xin chào thế giới!',
     avatar: "https://lh3.googleusercontent.com/a/ACg8ocIeHeRbRQj8ROIRcEWUgmroxFXPsseL8bFk-IBBi2OpuAzbwQCX=s192-c-mo",
-    name: 'Nguyễn Đình Phúc'
+    name: OWN_NAME
   }]);
 
   useEffect(() => {
@@ -25,12 +28,17 @@ function IndexSidePanel() {
       setRecordingText(text);
     }
 
+    socket.on("translating_text", onTranslatingText);
+    return () => {
+      socket.off("translating_text", onTranslatingText);
+    }
+  }, []);
+
+  useEffect(() => {
     async function onTranslatedText(content) {
       const speaker = await chrome.tabs.sendMessage(tabId, {command: "getParticipantTalking"});
-      console.log({ speaker });
       setRecordingText("");
       const lastHistoryText = historyTexts[historyTexts.length - 1];
-      console.log(lastHistoryText.name);
       if (speaker.name === lastHistoryText.name && !lastHistoryText.translated) {
         lastHistoryText.origin += "\n" + content.origin;
         setHistoryTexts((historyTexts) => [...historyTexts]);  
@@ -43,11 +51,8 @@ function IndexSidePanel() {
       }
     }
 
-    socket.on("translating_text", onTranslatingText);
     socket.on("translated_text", onTranslatedText);
-
     return () => {
-      socket.off("translating_text", onTranslatingText);
       socket.off("translated_text", onTranslatedText);
     }
   }, [tabId, historyTexts]);
@@ -57,6 +62,27 @@ function IndexSidePanel() {
     setTabId(tab.id);
     const port = chrome.tabs.connect(tab.id);
     port.postMessage({ command: "detectTalking" });
+    port.onMessage.addListener(function(msg) {
+      if (msg.myVoiceDetecting) {
+        setMyVoiceDetecting(msg.myVoiceDetecting);
+      } else if (msg.myVoiceDetected) {
+        setMyVoiceDetecting("");
+          setHistoryTexts((historyTexts) => {
+            const lastHistoryText = historyTexts[historyTexts.length - 1];
+            if (OWN_NAME === lastHistoryText.name && !lastHistoryText.translated) {
+              lastHistoryText.origin += "\n" + msg.myVoiceDetected;
+              return [...historyTexts];
+            } else {
+              return [...historyTexts, {
+                origin: msg.myVoiceDetected,
+                translated: "",
+                name: OWN_NAME,
+                avatar: "https://lh3.googleusercontent.com/a/ACg8ocIeHeRbRQj8ROIRcEWUgmroxFXPsseL8bFk-IBBi2OpuAzbwQCX=s192-c-mo"
+              }];
+            }
+          });  
+      }
+    });
 
     const streamId = await chrome.tabCapture.getMediaStreamId({
       targetTabId: tab.id,
@@ -110,10 +136,13 @@ function IndexSidePanel() {
   return (
     <div className='m-3'>
       <button className="bg-slate-200 hover:bg-slate-300 py-2 px-2 rounded" onClick={transcribeAudio}>Start Transcribe</button>
-      <button className='bg-slate-200 hover:bg-slate-300 py-2 px-2 rounded ml-2'>Translate</button>
       <div className='mt-2'>
         {historyTexts.map((content, index) => <TextBox key={ index } content={ content } translateText={translateText} />)}
         { recordingText && <p className='italic'>{ recordingText }...</p> }
+        { myVoiceDetecting && <div className='flex'>
+          <span className='font-bold mr-2'>{ OWN_NAME }</span>
+          <p className='italic'>{ myVoiceDetecting }...</p>
+        </div> }
       </div>
     </div>
   )

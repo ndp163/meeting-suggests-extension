@@ -9,6 +9,7 @@ chrome.runtime.onConnect.addListener(function(port) {
   port.onMessage.addListener(function(msg) {
     console.log({ msg });
     if (msg.command === "detectTalking")  {
+      detectMyVoice(port);
       observeParticipants();
       setInterval(detectTalking, 1000);
     }
@@ -81,7 +82,7 @@ function parentElement(el, selector) {
 
 function observeParticipants() {
   const parentElement = document.querySelector('div[role="list"]');
-  for (const element of parentElement.querySelectorAll('div[role="listitem"]')) {
+  for (const element of parentElement.querySelectorAll('div~[role="listitem"]')) {
     const participant = getParticipantInfo(element);
     participants[participant.id] = participant;
   }
@@ -119,4 +120,35 @@ function getParticipantTalking() {
     }
   }
   return speaker;
+}
+
+function detectMyVoice(port) {
+  if ('webkitSpeechRecognition' in window) {
+    const recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = function() {
+      console.log("Start...");
+    };
+    
+    recognition.onresult = function(event) {
+      var interim_transcript = '';
+      for (var i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          port.postMessage({ myVoiceDetected: event.results[i][0].transcript });
+        } else {
+          interim_transcript += event.results[i][0].transcript;
+        }
+      }
+      port.postMessage({ myVoiceDetecting: interim_transcript });
+    };
+    recognition.start();
+    recognition.onerror = function(event) {
+      console.log({event});
+    }
+  } else {
+    console.log("Not found SpeechRecognition");
+  }
 }
