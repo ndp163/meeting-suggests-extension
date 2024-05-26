@@ -3,6 +3,7 @@ import LangchainServiceBase from './langchainBase.service';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
 import { ChatMessageHistory } from "langchain/stores/message/in_memory";
 import { BaseMessageChunk } from '@langchain/core/messages';
+import { ChatOpenAI } from "@langchain/openai";
 
 export default class MeetingBotService extends LangchainServiceBase {
   private chainWithMessageHistory!: RunnableWithMessageHistory<any, BaseMessageChunk>;
@@ -13,12 +14,13 @@ export default class MeetingBotService extends LangchainServiceBase {
     const prompt = ChatPromptTemplate.fromMessages([
       [
         "system",
-        "Bạn là một con bot hỗ trợ tôi trong 1 cuộc phỏng vấn lập trình web. Khi người phỏng vấn hỏi, hãy đề xuất tôi cách trả lời bằng tiếng Anh, và giải thích bằng tiếng Việt cho tôi hiểu",
+        `You will be provided with recorded meeting that is transcribed to text, and your task is to summarize the meeting as follows:
+        - Overall summary of discussion.
+        - List the main points of discussion.`
       ],
       new MessagesPlaceholder("chat_history"),
-      ["human", "Người phỏng vấn hỏi câu hỏi sau: {input}"],
+      ["user", "{input}"],
     ]);
-    console.log(prompt);
     const chain = prompt.pipe(this.llmModel);
     const chatMessageHistory = new ChatMessageHistory();
     this.chainWithMessageHistory = new RunnableWithMessageHistory({
@@ -27,20 +29,17 @@ export default class MeetingBotService extends LangchainServiceBase {
       inputMessagesKey: "input",
       historyMessagesKey: "chat_history",
     });
-    // const template = `Human: You are an AI translating assistant. Translate the following text from English to Vietnamese:
-    //   "{question}"
-    //   Assistant:
-    // `
   }
 
-  async suggest(text: string) {
-    const result = await this.chainWithMessageHistory.invoke(
-      {
-        input: text,
-      },
-      { configurable: { sessionId: "1" } }
-    );
+  async summary(text: string) {
+    // const result = await this.chainWithMessageHistory.invoke(
+    //   {
+    //     input: text,
+    //   },
+    //   { configurable: { sessionId: "1" } }
+    // );
+    console.log(await this.chainWithMessageHistory.getMessageHistory("1"));
 
-    return result.content;
+    return "Oke";
   }
 }

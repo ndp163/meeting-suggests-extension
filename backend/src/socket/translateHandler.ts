@@ -21,8 +21,6 @@ export default (io: Server, socket: Socket) => {
   speechRecognizer.recognized = async (s, e) => {
     if (e.result.reason == azureSdk.ResultReason.RecognizedSpeech) {
       console.log(`RECOGNIZED: Text=${e.result.text}`);
-      // const translatedText = await meetingBotService.suggest(e.result.text);
-      // console.log({ translatedText });
       socket.emit("translated_text", {
         origin: e.result.text,
         translated: ""
@@ -55,5 +53,11 @@ export default (io: Server, socket: Socket) => {
 
   socket.on('send_audio', (data) => {
     pushStream.write(data);
+  });
+
+  socket.on('restart_transcribe', (data) => {
+    console.log("Restart transcribe", data);
+    speechRecognizer.stopContinuousRecognitionAsync();
+    speechRecognizer.startContinuousRecognitionAsync();
   });
 }
