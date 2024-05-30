@@ -13,6 +13,7 @@ enum PAGE {
 
 function IndexSidePanel() {
   const [page, setPage] = useState(PAGE.TRANSCRIBE);
+  const [meetingId, setMeetingId] = useState(Date.now());
 
   return (
     <>
@@ -21,7 +22,7 @@ function IndexSidePanel() {
         <li className={'cursor-pointer ' + (page === PAGE.HISTORY ? 'border-sky-500 border-b-[3px]' : 'hover:border-sky-200 hover:border-b-[3px]')} onClick={() => setPage(PAGE.HISTORY)}>History</li>
         <li className={'cursor-pointer ' + (page === PAGE.SUMMARY ? 'border-sky-500 border-b-[3px]' : 'hover:border-sky-200 hover:border-b-[3px]')} onClick={() => setPage(PAGE.SUMMARY)}>Summary</li>
       </ul>
-      {page === PAGE.TRANSCRIBE && <TranscribePage />}
+      {page === PAGE.TRANSCRIBE && <TranscribePage meetingId={ meetingId } />}
       {page === PAGE.HISTORY && <HistoryPage />}
       {page === PAGE.SUMMARY && <SummaryPage />}
     </>

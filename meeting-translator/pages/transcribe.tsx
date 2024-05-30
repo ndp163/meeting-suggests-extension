@@ -1,153 +1,211 @@
-import { useEffect, useState } from "react"
-import TextBox from '../components/TextBox'
-import { socket } from '../socket';
+import { useEffect, useRef, useState } from "react";
+import { Storage } from "@plasmohq/storage"
+import { useStorage } from "@plasmohq/storage/hook";
+import TextBox from "../components/TextBox";
+import { socket } from "../socket";
+import { LANG_CODE, STORAGE_KEY } from '../constants';
 
-export interface HistoryText {
-  origin: string;
-  translated: string;
-  avatar: string;
-  name: string;
-}
-
-const OWN_NAME = "Tôi";
-function TranscribePage() {
-  const [recordingText, setRecordingText] = useState("Listening");
-  const [myVoiceDetecting, setMyVoiceDetecting] = useState("");
+const MY_NAME = "Tôi";
+const MY_AVATAR =
+  "https://lh3.googleusercontent.com/a/ACg8ocIeHeRbRQj8ROIRcEWUgmroxFXPsseL8bFk-IBBi2OpuAzbwQCX=s192-c-mo";
+function TranscribePage({ meetingId }) {
+  const [transcribingResult, setTranscribingResult] = useState("Listening");
+  const [myTranscribingResult, setMyTranscribingResult] = useState("");
   const [tabId, setTabId] = useState(null);
-  const [historyTexts, setHistoryTexts] = useState<HistoryText[]>([{
-    origin: 'Hello World!',
-    translated: 'Xin chào thế giới!',
-    avatar: "https://lh3.googleusercontent.com/a/ACg8ocIeHeRbRQj8ROIRcEWUgmroxFXPsseL8bFk-IBBi2OpuAzbwQCX=s192-c-mo",
-    name: OWN_NAME
-  }]);
+  const [language, setLanguage] = useState(LANG_CODE.ENGLISH);
+  const [chromePort, setChromePort] = useState(null);
+
+  const [meetings, setMeetings] = useStorage({
+    key: STORAGE_KEY,
+    instance: new Storage({
+      area: "local"
+    }),
+  });
+  const meetingTitle = useRef("");
 
   useEffect(() => {
-    function onTranslatingText(text) {
-      setRecordingText(text);
-    }
+    chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true
+    }).then(tabs => {
+      setTabId(tabs[0].id);
+    });
 
-    socket.on("translating_text", onTranslatingText);
     return () => {
-      socket.off("translating_text", onTranslatingText);
     }
   }, []);
 
+
   useEffect(() => {
-    async function onTranslatedText(content) {
-      const speaker = await chrome.tabs.sendMessage(tabId, {command: "getParticipantTalking"});
-      setRecordingText("");
-      const lastHistoryText = historyTexts[historyTexts.length - 1];
-      if (speaker?.name === lastHistoryText.name && !lastHistoryText.translated) {
-        lastHistoryText.origin += "\n" + content.origin;
-        setHistoryTexts((historyTexts) => [...historyTexts]);  
+    if (!tabId) return;
+
+    const port = chrome.tabs.connect(tabId);
+    setChromePort(port);
+    onChromePortMessage(port);
+
+    async function onTranscribedResult(content) {
+      const speaker = await chrome.tabs.sendMessage(tabId, {
+        command: "getParticipantTalking"
+      });
+      setTranscribingResult("");
+      addToMeetingsStorage(speaker, content.origin);
+    }
+    function onTranscribingResult(text) {
+      setTranscribingResult(text);
+    }
+
+    socket.on("transcribing_result", onTranscribingResult);
+    socket.on("transcribedResult", onTranscribedResult);
+    return () => {
+      socket.off("transcribedResult", onTranscribedResult);
+      socket.off("transcribing_result", onTranscribingResult);
+      port.disconnect();
+    };
+  }, [tabId]);
+
+  function onChromePortMessage(port) {
+    port.onMessage.addListener(function (msg) {
+      if (msg.myTranscribingResult) {
+        setMyTranscribingResult(msg.myTranscribingResult);
+      } else if (msg.myTranscribedResult) {
+        setMyTranscribingResult("");
+        addToMeetingsStorage(
+          {
+            name: MY_NAME,
+            avatar: MY_AVATAR
+          },
+          msg.myTranscribedResult
+        );
+      } else if (msg.restartTranscribe) {
+        console.log("Restart transcribe...");
+        socket.emit("restart_transcribe");
+      } else if (msg.meetingTitle) {
+        console.log(msg.meetingTitle);
+        meetingTitle.current = msg.meetingTitle;
+      }
+    });
+  }
+  function addToMeetingsStorage(speaker, text) {
+    setMeetings((meeetings) => {
+      if (!meeetings) {
+        meeetings = {};
+      };
+
+      const currentMeeting = meeetings[meetingId] || {
+        title: meetingTitle.current,
+        startAt: meetingId,
+        contents: []
+      };
+      if (!currentMeeting.length) {
+        meeetings[meetingId] = currentMeeting;
+      }
+      const lastContentItem =
+        currentMeeting.contents[currentMeeting.contents.length - 1];
+      if (
+        lastContentItem &&
+        speaker?.name === lastContentItem.name &&
+        !lastContentItem.translated && !lastContentItem.suggest
+      ) {
+        lastContentItem.origin += " " + text;
+        return meeetings;
       } else {
-        setHistoryTexts((historyTexts) => [...historyTexts, {
-          ...content,
+        currentMeeting.contents.push({
+          origin: text,
+          translated: "",
           name: speaker?.name,
           avatar: speaker?.avatar
-        }]);
+        });
+
+        return meeetings;
       }
-    }
+    });
+  }
+  async function startTranscribe() {
+    socket.emit("init_transcribe", {
+      lang: language
+    });
 
-    socket.on("translated_text", onTranslatedText);
-    return () => {
-      socket.off("translated_text", onTranslatedText);
-    }
-  }, [tabId, historyTexts]);
-
-  async function transcribeAudio() {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    setTabId(tab.id);
-    const port = chrome.tabs.connect(tab.id);
-    port.postMessage({ command: "detectTalking" });
-    port.onMessage.addListener(function(msg) {
-      if (msg.myVoiceDetecting) {
-        setMyVoiceDetecting(msg.myVoiceDetecting);
-      } else if (msg.myVoiceDetected) {
-        setMyVoiceDetecting("");
-          setHistoryTexts((historyTexts) => {
-            const lastHistoryText = historyTexts[historyTexts.length - 1];
-            if (OWN_NAME === lastHistoryText.name && !lastHistoryText.translated) {
-              lastHistoryText.origin += "\n" + msg.myVoiceDetected;
-              return [...historyTexts];
-            } else {
-              return [...historyTexts, {
-                origin: msg.myVoiceDetected,
-                translated: "",
-                name: OWN_NAME,
-                avatar: "https://lh3.googleusercontent.com/a/ACg8ocIeHeRbRQj8ROIRcEWUgmroxFXPsseL8bFk-IBBi2OpuAzbwQCX=s192-c-mo"
-              }];
-            }
-          });  
-      } else if (msg.restartTranscribe) {
-        socket.emit("restart_transcribe");
+    chromePort.postMessage({
+      command: "detectTalking",
+      data: {
+        lang: language
       }
     });
 
     const streamId = await chrome.tabCapture.getMediaStreamId({
-      targetTabId: tab.id,
+      targetTabId: tabId
     });
-  
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         mandatory: {
-          chromeMediaSource: 'tab',
+          chromeMediaSource: "tab",
           chromeMediaSourceId: streamId
         }
       }
     });
 
-    console.log('Start capture...');
+    console.log("Start capture...");
 
     const context = new AudioContext({
       sampleRate: 16000
     });
-    await context.audioWorklet.addModule('./worklets.js');
+    await context.audioWorklet.addModule("./worklets.js");
     var newStream = context.createMediaStreamSource(stream);
-    console.log("OKEEE");
-  
-    const recorder = new AudioWorkletNode(context, 'recording-processor');
+
+    const recorder = new AudioWorkletNode(context, "recording-processor");
     newStream.connect(recorder);
     newStream.connect(context.destination);
-  
+
     recorder.port.onmessage = (e) => {
       socket.emit("send_audio", e.data);
     };
-  
+
     recorder.port.onmessageerror = (e) => {
       console.log(`Error receiving message from worklet ${e}`);
     };
   }
 
-  async function translateText(content: HistoryText) {
-    const response = await fetch("http://localhost:3000/translate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        text: content.origin
-      })
-    });
-    content.translated = await response.json();
-    setHistoryTexts((historyTexts) => [...historyTexts]);
-  }
-
   return (
-    <div className='m-3 mt-5'>
-      <div className='flex justify-end'>
-        <button className="bg-slate-200 hover:bg-slate-300 py-2 px-2 rounded" onClick={transcribeAudio}>Start Transcribe</button>
+    <div className="m-2 mt-5">
+      <div className="flex justify-start">
+        <form onChange={(e) => setLanguage(e.target.value)}>
+          <select
+            id="languages"
+            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+            <option disabled selected>
+              Choose language
+            </option>
+            <option value={LANG_CODE.ENGLISH}>English</option>
+            <option value={LANG_CODE.VIETNAMESE}>Vietnamese</option>
+            <option value={LANG_CODE.JAPANESE}>Japanese</option>
+          </select>
+        </form>
+        <button
+          className="ml-4 bg-slate-200 hover:bg-slate-300 py-2 px-2 rounded"
+          onClick={startTranscribe}>
+          Start Transcribe
+        </button>
       </div>
-      <div className='mt-4'>
-        {historyTexts.map((content, index) => <TextBox key={ index } content={ content } translateText={translateText} />)}
-        { recordingText && <p className='italic'>{ recordingText }...</p> }
-        { myVoiceDetecting && <div className='flex'>
-          <span className='font-bold mr-2'>{ OWN_NAME }</span>
-          <p className='italic'>{ myVoiceDetecting }...</p>
-        </div> }
+      <div className="mt-4">
+        {meetings?.[meetingId]?.contents.map((content, index) => (
+          <TextBox
+            key={index}
+            content={content}
+            index={index}
+            meetingId={meetingId}
+          />
+        ))}
+        {transcribingResult && <p className="italic">{transcribingResult}...</p>}
+        {myTranscribingResult && (
+          <div className="flex">
+            <span className="font-bold mr-2">{MY_NAME}</span>
+            <p className="italic">{myTranscribingResult}...</p>
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 export default TranscribePage;

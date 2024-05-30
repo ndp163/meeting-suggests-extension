@@ -1,11 +1,81 @@
-import type { HistoryText } from "../sidepanel"
+import { useStorage } from "@plasmohq/storage/hook";
+import { Storage } from "@plasmohq/storage"
+import { socket } from "../socket";
+import { useEffect, useState } from 'react';
+import type { Transcript } from '../constants';
 
 interface Props {
-  content: HistoryText
-  translateText: (content: HistoryText) => void
+  content: Transcript;
+  index: number;
+  meetingId: number;
 }
 
-export default function TextBox({ content, translateText }: Props) {
+export default function TextBox({ content, index, meetingId }: Props) {
+  const [history, setHistory] = useStorage({
+    key: "history",
+    instance: new Storage({
+      area: "local"
+    })
+  });
+  const [suggestedAnswer, setSuggestedAnswer] = useState("");
+
+  useEffect(() => {
+    if (!history) return;
+
+    const onSuggestedAnswer = (data) => {
+      if (data.contentIndex === index) {
+        setSuggestedAnswer((suggestedAnswer) => {
+          if (data.isFinish) {
+            setHistory((history) => {
+              history[meetingId].contents[index].suggest = suggestedAnswer + data.contentChunk;
+              return history;
+            }) 
+          }
+          return suggestedAnswer + data.contentChunk;
+        });
+      }
+    }
+    socket.on('suggested_answer', onSuggestedAnswer);
+
+    return () => {
+      socket.off("suggested_answer", onSuggestedAnswer);
+    }
+  }, [history]);
+
+  const translateText = async (content: HistoryText) => {
+    const response = await fetch("http://localhost:3000/translate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: content.origin
+      })
+    });
+    const translated = await response.json();
+    setHistory((history) => {
+      history[meetingId].contents[index].translated = translated;
+
+      return history;
+    });
+  };
+
+  const suggestAnswer = async (content: HistoryText) => {
+    // const response = await fetch("http://localhost:3000/suggest", {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json"
+    //   },
+    //   body: JSON.stringify({
+    //     text: content.origin
+    //   })
+    // });
+    socket.emit("suggest_answer", {
+      contentIndex: index,
+      text: content.origin
+    });
+  };
+
   return (
     <div className="mb-2">
       <div className="flex items-center">
@@ -23,14 +93,41 @@ export default function TextBox({ content, translateText }: Props) {
           </div>
         )}
 
-        {!content.translated && (
-          <button
-            className="block ml-auto bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded"
-            onClick={() => translateText(content)}>
-            Translate
-          </button>
+        {content.suggest && (
+          <div className="pt-4 rounded">
+            <span className="font-bold">Suggest</span>
+            {content.suggest.split("\n").map((item) => (
+              <p>{item}</p>
+            ))}
+          </div>
         )}
+
+         {!content.suggest && suggestedAnswer && (
+          <div className="pt-4 rounded">
+            <span className="font-bold">Suggested Answer</span>
+            {suggestedAnswer.split("\n").map((item) => (
+              <p>{item}</p>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end mt-2">
+          {!content.translated && (
+            <button
+              className="mr-2 bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded"
+              onClick={() => translateText(content)}>
+              Translate
+            </button>
+          )}
+          {!content.suggest && (
+            <button
+              className="mr-2 bg-blue-100 hover:bg-blue-200 px-2 py-1 rounded"
+              onClick={() => suggestAnswer(content)}>
+              Suggest
+            </button>
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }

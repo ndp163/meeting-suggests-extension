@@ -4,15 +4,11 @@ export const config: PlasmoCSConfig = {
   matches: ["https://meet.google.com/*-*-*"],
   all_frames: true
 }
-console.log("OKE");
+console.log("Start content script...");
 chrome.runtime.onConnect.addListener(function(port) {
   port.onMessage.addListener(function(msg) {
-    console.log({ msg });
     if (msg.command === "detectTalking")  {
-      // detectMyVoice(port);
-      const observer = mutationObserver(port);
-      observeParticipants(observer);
-      setInterval(detectTalking, 1000);
+      detectTalking(port, msg.data);
     }
   });
 });
@@ -28,6 +24,17 @@ chrome.runtime.onMessage.addListener(
 
 const participants = {};
 let numOfTalking = 0;
+let recognition;
+let restartTranscribeAt = 0;
+
+const detectTalking = (port, data) => {
+  const meetingTitle = document.querySelector(`div[data-meeting-title="${window.location.pathname.substring(1)}"] span`).firstChild.innerText;
+  port.postMessage({ meetingTitle });
+  initMyTranscribe(port, data.lang);
+  const observer = mutationObserver(port);
+  observeParticipants(observer);
+  setInterval(detectStopTalking, 1000);
+}
 
 function mutationObserver(port) {
   return new MutationObserver(function(mutations) {
@@ -44,7 +51,9 @@ function mutationObserver(port) {
         }
         return el.className.split(" ").length === 5 && participants[id]
       });
-      if (numOfTalking > 0 && realMutations.length > numOfTalking) {
+      const now = Date.now();
+      if (numOfTalking > 0 && realMutations.length > numOfTalking && now - restartTranscribeAt > 2000) {
+        restartTranscribeAt = now;
         port.postMessage({ restartTranscribe: true });
       }
       numOfTalking = realMutations.length;
@@ -111,12 +120,10 @@ function observeParticipants(observer) {
   });
 }
 
-function detectTalking() {
+function detectStopTalking() {
   for (const id in participants) {
     const record = participants[id];
     const now = Date.now();
-    console.log(record.name);
-    console.log(now -record.last_end);
     if (now - record.last_end > 2000) {
       record.talking = false;
     }
@@ -134,27 +141,36 @@ function getParticipantTalking() {
   return speaker;
 }
 
-function detectMyVoice(port) {
+function initMyTranscribe(port, lang) {
+  if (recognition) {
+    recognition.stop();
+  }
+  console.log("OKE");
   if ('webkitSpeechRecognition' in window) {
-    const recognition = new webkitSpeechRecognition();
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = lang;
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
-
+  
     recognition.onstart = function() {
       console.log("Start...");
     };
     
+    recognition.onend = function() {
+      console.log("voice recognition terminated");
+      recognition.start();
+    };
+
     recognition.onresult = function(event) {
       var interim_transcript = '';
       for (var i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          port.postMessage({ myVoiceDetected: event.results[i][0].transcript });
+          port.postMessage({ myTranscribedResult: event.results[i][0].transcript });
         } else {
           interim_transcript += event.results[i][0].transcript;
         }
       }
-      port.postMessage({ myVoiceDetecting: interim_transcript });
+      port.postMessage({ myTranscribingResult: interim_transcript });
     };
     recognition.start();
     recognition.onerror = function(event) {
