@@ -8,7 +8,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import 'dotenv/config';
 
 export default abstract class LangchainServiceBase {
-  protected vectorStore!: AzureAISearchVectorStore
+  // protected vectorStore!: AzureAISearchVectorStore
   protected llmModel!: ChatOpenAI
 
   constructor() {
@@ -30,19 +30,15 @@ export default abstract class LangchainServiceBase {
       temperature: 0.5
     })
 
-    const embeddingModel = new BedrockEmbeddings({
-      region: process.env.AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
-      model: "amazon.titan-embed-text-v1", // Default value
-    });
+    // const embeddingModel = new BedrockEmbeddings({
+    //   region: process.env.AWS_REGION,
+    //   credentials: {
+    //     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    //     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    //   },
+    //   model: "amazon.titan-embed-text-v1", // Default value
+    // });
 
-    this.vectorStore = new AzureAISearchVectorStore(embeddingModel, {});
-  }
-
-  async translate(text: string) {
-    return await this.llmModel.invoke(`Human: You are an translating tool, you will translate from English to Vietnamese, return just the translated result in Vietnamese. Text: "${text}". Assistant:`);
+    // this.vectorStore = new AzureAISearchVectorStore(embeddingModel, {});
   }
 }

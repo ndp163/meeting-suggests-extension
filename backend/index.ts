@@ -3,7 +3,8 @@ import cors from 'cors';
 import router from './src/routes';
 import { createServer } from "http";
 import { Server } from "socket.io";
-import translateHandler from "./src/socket/translateHandler";
+import transcribeHandler from "./src/socket/transcribeHandler";
+import suggestHandler from './src/socket/suggestHandler';
 
 const app = express();
 
@@ -37,7 +38,8 @@ const io = new Server(httpServer, {
 io.on('connect', (socket) => {
   console.log(socket.id);
 
-  translateHandler(io, socket);
+  transcribeHandler(io, socket);
+  suggestHandler(io, socket);
 })
 
 httpServer.listen(port as number, '0.0.0.0', () => {

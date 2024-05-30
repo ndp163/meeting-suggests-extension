@@ -13,13 +13,16 @@ class MeetingController {
   }
 
   async translate(req: Request, res: Response, next: Function) {
-    await this.ragQAService.init();
-    console.log(req);
-    return res.json(await this.ragQAService.ask(req.body.text));
+    return res.json(await this.ragQAService.translate(req.body.text));
   }
 
   async summary(req: Request, res: Response, next: Function) {
     return res.json(await this.meetingBotService.summary(req.body.text));
+  }
+
+  async suggest(req: Request, res: Response, next: Function) {
+    console.log(req.body);
+    return res.json(await this.ragQAService.suggest(req.body.text));
   }
 }
 

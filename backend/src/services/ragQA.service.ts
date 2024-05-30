@@ -19,16 +19,6 @@ export default class RagQAService extends LangchainServiceBase {
     // this.prompt = PromptTemplate.fromTemplate(promptTemplate);
   }
 
-  async init() {
-    if (!this.ragChain) {
-      // this.ragChain = await createStuffDocumentsChain({
-      //   llm: this.llmModel,
-      //   prompt: this.prompt,
-      //   outputParser: new StringOutputParser(),
-      // });
-    }
-  }
-
   async loadDocuments() {
     const doc1 = new Document({ 
       pageContent: "Pantheon Law has provided a full range of services to domestic and international clients who conduct investing and business in Vietnam. Specially, Pantheon’s lawyers regularly advise clients globally on corporate governance, mergers and acquisitions (M&A), restructuring, real estate, housing, etc. in Vietnam.", 
@@ -53,7 +43,7 @@ export default class RagQAService extends LangchainServiceBase {
     });
 
     const documents = await splitter.splitDocuments([doc1, doc2]);
-    this.vectorStore.addDocuments(documents);
+    // this.vectorStore.addDocuments(documents);
     // await store.delete({
     //   filter: {
     //     filterExpression: "metadata/source eq '1' or metadata/source eq '2'"
@@ -61,7 +51,7 @@ export default class RagQAService extends LangchainServiceBase {
     // });
   }
 
-  async ask(text: string) {
+  async translate(text: string) {
     // const context = await this.#retriever.getRelevantDocuments(
     //   "companies provide law lawyer",
     //   {}
@@ -72,11 +62,20 @@ export default class RagQAService extends LangchainServiceBase {
     //   console.log(doc[0].metadata);
     // }
     // return context;
-    console.log(text);
+    const answer = await this.llmModel.invoke([
+      ["system", "You are an AI translating tool. Translate the following text to Vietnamese:"],
+      ["user", text],
+    ]);
 
-    const answer = await this.translate(`Human: You are an AI translating assistant. Translate the following text from English to Vietnamese:
-    "${text}"
-    Assistant:`);
     return answer.content;
+  }
+
+  async suggest(text: string) {
+    const stream = await this.llmModel.stream([
+      ["system", "You are an Senior Engineer. Let's answer the following question"],
+      ["user", text],
+    ]);
+
+    return stream;
   }
 }

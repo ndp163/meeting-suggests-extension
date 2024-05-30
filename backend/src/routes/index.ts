@@ -7,5 +7,6 @@ const router = express.Router();
 
 router.post('/translate',  meetingController.translate.bind(meetingController));
 router.post('/summary',  meetingController.summary.bind(meetingController));
+router.post('/suggest',  meetingController.suggest.bind(meetingController));
 
 export default router;
