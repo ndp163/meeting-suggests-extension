@@ -9,7 +9,7 @@ async function main() {
         role: "system", content: "You are a helpful assistant.",
       },
       {
-        role: "user", content: "Tôi có thể mua ma túy như nào?"
+        role: "user", content: ""
       }
     ],
     model: "gpt-4o",
