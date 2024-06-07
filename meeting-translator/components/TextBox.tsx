@@ -2,7 +2,7 @@ import { useStorage } from "@plasmohq/storage/hook";
 import { Storage } from "@plasmohq/storage"
 import { socket } from "../socket";
 import { useEffect, useState } from 'react';
-import type { Transcript } from '../constants';
+import { STORAGE_KEY, type Transcript } from '../constants';
 
 interface Props {
   content: Transcript;
@@ -11,8 +11,8 @@ interface Props {
 }
 
 export default function TextBox({ content, index, meetingId }: Props) {
-  const [history, setHistory] = useStorage({
-    key: "history",
+  const [meetings, setMeetings] = useStorage({
+    key: STORAGE_KEY,
     instance: new Storage({
       area: "local"
     })
@@ -20,15 +20,15 @@ export default function TextBox({ content, index, meetingId }: Props) {
   const [suggestedAnswer, setSuggestedAnswer] = useState("");
 
   useEffect(() => {
-    if (!history) return;
+    if (!meetings) return;
 
     const onSuggestedAnswer = (data) => {
       if (data.contentIndex === index) {
         setSuggestedAnswer((suggestedAnswer) => {
           if (data.isFinish) {
-            setHistory((history) => {
-              history[meetingId].contents[index].suggest = suggestedAnswer + data.contentChunk;
-              return history;
+            setMeetings((meetings) => {
+              meetings[meetingId].contents[index].suggest = suggestedAnswer + data.contentChunk;
+              return meetings;
             }) 
           }
           return suggestedAnswer + data.contentChunk;
@@ -40,9 +40,9 @@ export default function TextBox({ content, index, meetingId }: Props) {
     return () => {
       socket.off("suggested_answer", onSuggestedAnswer);
     }
-  }, [history]);
+  }, [meetings]);
 
-  const translateText = async (content: HistoryText) => {
+  const translateText = async (content: Transcript) => {
     const response = await fetch("http://localhost:3000/translate", {
       method: "POST",
       headers: {
@@ -53,14 +53,14 @@ export default function TextBox({ content, index, meetingId }: Props) {
       })
     });
     const translated = await response.json();
-    setHistory((history) => {
-      history[meetingId].contents[index].translated = translated;
+    setMeetings((meetings) => {
+      meetings[meetingId].contents[index].translated = translated;
 
-      return history;
+      return meetings;
     });
   };
 
-  const suggestAnswer = async (content: HistoryText) => {
+  const suggestAnswer = async (content: Transcript) => {
     // const response = await fetch("http://localhost:3000/suggest", {
     //   method: "POST",
     //   headers: {

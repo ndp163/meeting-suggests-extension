@@ -55,9 +55,9 @@ function TranscribePage({ meetingId }) {
     }
 
     socket.on("transcribing_result", onTranscribingResult);
-    socket.on("transcribedResult", onTranscribedResult);
+    socket.on("transcribed_result", onTranscribedResult);
     return () => {
-      socket.off("transcribedResult", onTranscribedResult);
+      socket.off("transcribed_result", onTranscribedResult);
       socket.off("transcribing_result", onTranscribingResult);
       port.disconnect();
     };

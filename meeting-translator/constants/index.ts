@@ -10,6 +10,6 @@ export const STORAGE_KEY = "meetings";
 
 export enum LANG_CODE {
   ENGLISH = "en-US",
-  VIETNAMESE =" vi-VN",
+  VIETNAMESE ="vi-VN",
   JAPANESE = "ja-JP"
 }
