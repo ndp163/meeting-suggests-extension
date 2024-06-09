@@ -90,7 +90,7 @@ So I created this chrome extension to support us in meetings, helping us solve t
 
 # Getting Started
 
-Let's follow below step to run the project.
+Let's follow below step to use this chrome extension.
 
 ## Prerequisites
 
