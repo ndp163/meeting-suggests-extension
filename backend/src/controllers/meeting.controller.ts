@@ -21,7 +21,6 @@ class MeetingController {
   }
 
   async suggest(req: Request, res: Response, next: Function) {
-    console.log(req.body);
     return res.json(await this.ragQAService.suggest(req.body.text));
   }
 }
